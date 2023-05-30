@@ -18,3 +18,10 @@ for reward_type, has_object, controller, fetch in itertools.product(["dense", "s
     name = f"MyCobot{fetch_env}PickAndPlace" if has_object else f"MyCobot{fetch_env}Reach"
     gymnasium.register(f"{name}-{REWARD[reward_type]}-{controller}-v0",
                        entry_point="mycobotgym.envs.mycobot:MyCobotEnv", kwargs=kwargs, max_episode_steps=50)
+
+# Register MyCobotVision
+register(
+    id="MyCobotVision-v0",
+    # entry_point=MyCobotVision()
+    entry_point="mycobotgym.obj_localize.envs.mycobot_vision:MyCobotVision"
+)
