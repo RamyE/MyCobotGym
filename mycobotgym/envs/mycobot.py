@@ -12,6 +12,7 @@ from gymnasium_robotics.utils import rotations
 from gymnasium_robotics.utils.rotations import euler2quat
 from gymnasium.utils import seeding
 from gymnasium.core import ObsType
+import cv2
 
 DEFAULT_CAMERA_CONFIG = {
     "distance": 2,
@@ -34,7 +35,7 @@ class MyCobotEnv(MujocoEnv):
     metadata = {"render_modes": [
         "human", "rgb_array", "depth_array"], "render_fps": 25}
 
-    def __init__(self, model_path: str = "./assets/mycobot280.xml", has_object=True, block_gripper=False, control_steps=5, controller_type: Literal['mocap', 'IK', 'joint', 'delta_joint'] = 'IK', obj_range: float = 0.1, target_range: float = 0.1, target_offset: float = 0.0, target_in_the_air=True, distance_threshold=0.05, initial_qpos: dict = {}, fetch_env: bool = False, reward_type="sparse", frame_skip: int = 20, default_camera_config: dict = DEFAULT_CAMERA_CONFIG, **kwargs) -> None:
+    def __init__(self, model_path: str = "./assets/mycobot280.xml", has_object=True, block_gripper=False, control_steps=5, controller_type: Literal['mocap', 'IK', 'joint', 'delta_joint'] = 'IK', obj_range: float = 0.1, target_range: float = 0.1, target_offset: float = 0.0, target_in_the_air=True, distance_threshold=0.05, initial_qpos: dict = {}, fetch_env: bool = False, reward_type="sparse", frame_skip: int = 20, default_camera_config: dict = DEFAULT_CAMERA_CONFIG, vision=False, **kwargs) -> None:
 
         self.block_gripper = block_gripper
         self.has_object = has_object
@@ -49,6 +50,7 @@ class MyCobotEnv(MujocoEnv):
         self.target_offset = target_offset
         self.obj_range = obj_range
         self.goal = np.zeros(3)
+        self.vision = vision
 
         xml_file_path = path.join(
             path.dirname(path.realpath(__file__)),
@@ -92,19 +94,34 @@ class MyCobotEnv(MujocoEnv):
                 action_size = 8
 
         obs = self._get_obs()
-        self.observation_space = spaces.Dict(
-            dict(
-                desired_goal=spaces.Box(
-                    -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
-                ),
-                achieved_goal=spaces.Box(
-                    -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
-                ),
-                observation=spaces.Box(
-                    -np.inf, np.inf, shape=obs["observation"].shape, dtype="float64"
-                ),
+        if not vision:
+            self.observation_space = spaces.Dict(
+                dict(
+                    desired_goal=spaces.Box(
+                        -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
+                    ),
+                    achieved_goal=spaces.Box(
+                        -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
+                    ),
+                    observation=spaces.Box(
+                        -np.inf, np.inf, shape=obs["observation"].shape, dtype="float64"
+                    ),
+                )
             )
-        )
+        else:
+            self.observation_space = spaces.Dict(
+                dict(
+                    image_obs_1=spaces.Box(
+                        0, 255, shape=obs["image_obs_1"].shape, dtype=np.uint8
+                    ),
+                    image_obs_2=spaces.Box(
+                        0, 255, shape=obs["image_obs_2"].shape, dtype=np.uint8
+                    ),
+                    proprioception=spaces.Box(
+                        -np.inf, np.inf, shape=obs["proprioception"].shape, dtype="float64"
+                    ),
+                )
+            )
 
         self.action_space = spaces.Box(
             low=-1.0, high=1.0, dtype=np.float32, shape=(action_size,)
@@ -209,17 +226,22 @@ class MyCobotEnv(MujocoEnv):
             obs["achieved_goal"], obs["desired_goal"], info)
 
         if self.render_mode == "human":
-            self.mujoco_renderer.viewer.add_overlay(
-                mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "is_success", str(info["is_success"]))
-            if self.has_object:
-                self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_object_target", "%.3f" %
-                                                        goal_distance(obs["achieved_goal"], self.goal))
-                self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_object", "%.3f" %
-                                                        goal_distance(obs["achieved_goal"], obs["observation"][:3]))
-            else:
-                self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_target", "%.3f" %
-                                                        goal_distance(obs["achieved_goal"], self.goal))
+            if not self.vision: # these images are used as observations so we will not add these overlays
+                self.mujoco_renderer.viewer.add_overlay(
+                    mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "is_success", str(info["is_success"]))
+                if self.has_object:
+                    self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_object_target", "%.3f" %
+                                                            goal_distance(obs["achieved_goal"], self.goal))
+                    self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_object", "%.3f" %
+                                                            goal_distance(obs["achieved_goal"], obs["observation"][:3]))
+                else:
+                    self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_target", "%.3f" %
+                                                            goal_distance(obs["achieved_goal"], self.goal))
             self.render()
+
+        if self.vision:
+            del obs["desired_goal"]
+            del obs["achieved_goal"]
         return obs, reward, terminated, truncated, info
 
     def reset_model(self):
@@ -252,6 +274,10 @@ class MyCobotEnv(MujocoEnv):
         self.goal = self._sample_goal().copy()
 
         obs = self._get_obs()
+        if self.vision:
+            del obs["desired_goal"]
+            del obs["achieved_goal"]
+
         return obs
 
     def _sample_goal(self):
@@ -285,25 +311,56 @@ class MyCobotEnv(MujocoEnv):
         else:
             achieved_goal = np.squeeze(object_pos.copy())
 
-        obs = np.concatenate(
-            [
-                grip_pos,
-                object_pos.ravel(),
-                object_rel_pos.ravel(),
-                gripper_state,
-                object_rot.ravel(),
-                object_velp.ravel(),
-                object_velr.ravel(),
-                grip_velp,
-                gripper_vel,
-            ]
-        )
+        if self.vision:
+            # Use RGB image observation
+            birdview_image_obs = self.mujoco_renderer.render(render_mode='rgb_array', camera_name="birdview")
+            sideview_image_obs = self.mujoco_renderer.render(render_mode='rgb_array', camera_name="sideview")
+            birdview_image_obs = cv2.resize(birdview_image_obs, (240, 240))
+            sideview_image_obs = cv2.resize(sideview_image_obs, (240, 240))
+            # Save the image observation to a file
+            # cv2.imwrite('birdview_image_obs.jpg', birdview_image_obs)
+            # cv2.imwrite('sideview_image_obs.jpg', sideview_image_obs)
 
-        return {
-            "observation": obs.copy(),
-            "achieved_goal": achieved_goal.copy(),
-            "desired_goal": self.goal.copy(),
-        }
+            # print(image_obs.shape)
+            # print(image_obs.dtype)
+            obs = np.concatenate(
+                [
+                    grip_pos,
+                    gripper_state,
+                    grip_velp,
+                    gripper_vel,
+                ]
+            )
+
+            return {
+                "image_obs_1": birdview_image_obs.copy(),
+                "image_obs_2": sideview_image_obs.copy(),
+                "proprioception": obs.copy(),
+                "achieved_goal": achieved_goal.copy(),
+                "desired_goal": self.goal.copy(),
+
+            }
+        else:
+            # Use the standard object position observation
+            obs = np.concatenate(
+                [
+                    grip_pos,
+                    object_pos.ravel(),
+                    object_rel_pos.ravel(),
+                    gripper_state,
+                    object_rot.ravel(),
+                    object_velp.ravel(),
+                    object_velr.ravel(),
+                    grip_velp,
+                    gripper_vel,
+                ]
+            )
+
+            return {
+                "observation": obs.copy(),
+                "achieved_goal": achieved_goal.copy(),
+                "desired_goal": self.goal.copy(),
+            }
 
     def _is_success(self, achieved_goal, desired_goal):
         d = goal_distance(achieved_goal, desired_goal)

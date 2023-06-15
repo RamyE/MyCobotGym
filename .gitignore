@@ -135,3 +135,9 @@ dmypy.json
 # trained_model
 log-dir
 .DS_Store
+
+
+logs/*
+runs/*
+wandb/*
+*.jpg
