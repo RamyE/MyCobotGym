@@ -22,6 +22,6 @@ for reward_type, has_object, controller, fetch in itertools.product(["dense", "s
 # Register MyCobotVision
 register(
     id="MyCobotVision-v0",
-    # entry_point=MyCobotVision()
-    entry_point="mycobotgym.obj_localize.envs.mycobot_vision:MyCobotVision"
+    entry_point="mycobotgym.obj_localize.envs.mycobot_vision:MyCobotVision",
+    max_episode_steps=50
 )
