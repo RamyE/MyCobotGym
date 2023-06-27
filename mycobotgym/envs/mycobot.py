@@ -317,9 +317,9 @@ class MyCobotEnv(MujocoEnv):
             sideview_image_obs = self.mujoco_renderer.render(render_mode='rgb_array', camera_name="sideview")
             birdview_image_obs = cv2.resize(birdview_image_obs, (240, 240))
             sideview_image_obs = cv2.resize(sideview_image_obs, (240, 240))
-            # Save the image observation to a file
-            # cv2.imwrite('birdview_image_obs.jpg', birdview_image_obs)
-            # cv2.imwrite('sideview_image_obs.jpg', sideview_image_obs)
+            # Save the image observation to a file - cv2 assumes BGR not RGB, so we convert the channel ordering first
+            # cv2.imwrite('birdview_image_obs.jpg', cv2.cvtColor(birdview_image_obs, cv2.COLOR_RGB2BGR))
+            # cv2.imwrite('sideview_image_obs.jpg', cv2.cvtColor(sideview_image_obs, cv2.COLOR_RGB2BGR))
 
             # print(image_obs.shape)
             # print(image_obs.dtype)
