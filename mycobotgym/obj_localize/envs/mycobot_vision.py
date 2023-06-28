@@ -18,6 +18,7 @@ class MyCobotVision(MyCobotEnv):
                  default_camera_config: dict = DEFAULT_CAMERA_CONFIG, mode: str = "train", **kwargs) -> None:
         self.mode = mode
         if "eval" == self.mode:
+            print(">>>Evaluation.")
             self.vision_model = ObjectLocalization()
             vision_model_pth = path.join(
                 path.dirname(path.realpath(__file__)),
@@ -28,7 +29,6 @@ class MyCobotVision(MyCobotEnv):
                                             target_range, target_offset, target_in_the_air, distance_threshold, initial_qpos,
                                             fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
 
-    ''''''
     def generate_mujoco_observations(self):
         (
             grip_pos,
@@ -43,6 +43,7 @@ class MyCobotVision(MyCobotEnv):
         ) = super(MyCobotVision, self).generate_mujoco_observations()
         if self.has_object and "eval" == self.mode:
             # position from vision model
+            print(">>>Render.")
             cam_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
             cam_img = torch.unsqueeze(cam_img, dim=0)
             object_pos = self.vision_model(cam_img)
@@ -60,7 +61,6 @@ class MyCobotVision(MyCobotEnv):
             gripper_vel,
         )
 
-    ''''''
     def reset_model(self):
         # hide target0 by setting the transparency value alpha
         target_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "target0")
