@@ -1,2 +1,6 @@
 # model weights
 *.pth
+*.csv
+*.png
+*.jpg
+*.tar

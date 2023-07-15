@@ -4,8 +4,8 @@ import sys
 import argparse
 from tqdm import tqdm
 
-from sim_manager import SimManager
 from PIL import Image
+from mycobotgym.obj_localize.envs.mycobot_vision import MyCobotVision
 from mycobotgym.obj_localize.utils.general_utils import *
 from mycobotgym.obj_localize.constants import *
 
@@ -17,17 +17,19 @@ def _initialize(path):
 
 
 def generate_data(file_name, num_img):
-    sim_manager = SimManager(MYCOBOT_PATH)
-    data_dir = convert_path(os.path.join(ROOT_DATA_DIR, file_name))
-    check_exists(data_dir)
-    img_dir = convert_path(os.path.join(data_dir, "data"))
+    env = MyCobotVision()
+    # data_dir = convert_path(os.path.join(ROOT_DATA_DIR, file_name))
+    # print(data_dir)
+    # check_exists(data_dir)
+    check_exists(file_name)
+    img_dir = convert_path(os.path.join(file_name, "data"))
     check_exists(img_dir)
-    pos_path = convert_path(os.path.join(data_dir, "pos_map.json"))
+    pos_path = convert_path(os.path.join(file_name, "pos_map.json"))
     _initialize(pos_path)
     img_count = count_files(img_dir)
     print("Number of images in dataset: {}".format(img_count))
     for i in tqdm(range(num_img)):
-        pos, img = sim_manager.get_data(BIRD_VIEW)
+        pos, img = env.generate_image()
         img_name = str(i) + ".jpg"
         write_data(pos, img, img_dir, pos_path, img_name)
 
@@ -46,7 +48,4 @@ def write_data(pos, img, img_dir, pos_path, image_name):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--num_images', type=int, default=1)
-    args = parser.parse_args()
-    generate_data("domain_rand", args.num_images)
+    generate_data("test_target", 400)

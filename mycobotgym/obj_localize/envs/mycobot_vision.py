@@ -1,13 +1,17 @@
 import os
-
+import numpy as np
 import torch
 import mujoco
+import torchvision.transforms as transforms
 
 from typing import Literal
 from os import path
+from PIL import Image
+from gymnasium_robotics.utils import mujoco_utils
 from mycobotgym.envs.mycobot import MyCobotEnv
 from mycobotgym.obj_localize.vision_model.model import ObjectLocalization
 from mycobotgym.obj_localize.constants import *
+from mycobotgym.obj_localize.utils.data_utils import *
 
 
 class MyCobotVision(MyCobotEnv):
@@ -25,6 +29,7 @@ class MyCobotVision(MyCobotEnv):
                 BEST_MODEL_PATH
             )
             self.vision_model.load_state_dict(torch.load(vision_model_pth))
+
         super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps, controller_type, obj_range,
                                             target_range, target_offset, target_in_the_air, distance_threshold, initial_qpos,
                                             fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
@@ -61,9 +66,36 @@ class MyCobotVision(MyCobotEnv):
             gripper_vel,
         )
 
-    def reset_model(self):
-        # hide target0 by setting the transparency value alpha
-        target_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "target0")
-        self.model.site_rgba[target_id][-1] = 0
-        return super(MyCobotVision, self).reset_model()
+    def _get_obs(self):
+        obs_goal = super(MyCobotVision, self)._get_obs()
+        if "eval" == self.mode:
+            cam_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
+            # display_img(cam_img)
+            with torch.no_grad():
+                cam_img = Image.fromarray(cam_img.copy()).resize((224, 224))
+                img_tensor = transforms.ToTensor()(cam_img)
+                img_tensor = torch.unsqueeze(img_tensor, dim=0)
+                target_pos = self.vision_model(img_tensor)
+                target_pos = torch.squeeze(target_pos).cpu().numpy().astype(np.float64)
+                # scale to meters
+                target_pos = target_pos / 100
+                # print(f">>>{target_pos}")
+                # print(f">>>{self.goal}")
+            obs_goal["desired_goal"] = target_pos.copy()
+        return obs_goal
 
+    def generate_image(self):
+        super(MyCobotVision, self).reset_model()
+        site_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_SITE, "target0"
+        )
+        self.model.site_pos[site_id] = self.goal
+        mujoco.mj_forward(self.model, self.data)
+        target_pos = mujoco_utils.get_site_xpos(
+            self.model, self.data, "target0")
+        cam_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
+        # display_img(cam_img)
+        # print(target_pos)
+        # print(self.goal)
+        assert target_pos.all() == self.goal.all()
+        return target_pos, cam_img

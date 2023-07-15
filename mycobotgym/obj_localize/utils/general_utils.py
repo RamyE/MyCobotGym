@@ -12,7 +12,7 @@ def convert_path(path):
 
 
 def wandb_init():
-    wandb.init(
+    run = wandb.init(
         # set the wandb project where this run will be logged
         project="MyCobot_Summer2023",
 
@@ -22,8 +22,10 @@ def wandb_init():
             "architecture": "VGG16",
             "dataset": "domain-rand",
             "epochs": 10,
-        }
+        },
+        resume=False
     )
+    return run
 
 
 def count_files(file_dir):
@@ -56,3 +58,13 @@ def plot(pth1, pth2):
     plt.ylabel("Loss")
     plt.legend(loc='best')
     plt.show()
+
+
+if __name__ == '__main__':
+    # pth1 = "D:\Osiris\Python\Projects\Sim2Real\data\deprecate\\25b-30e-freeze\VGGNet_train_err.csv"
+    # pth2 = "D:\Osiris\Python\Projects\Sim2Real\data\deprecate\\25b-30e-freeze\VGGNet_val_err.csv"
+    pth1 = "D:\Osiris\Python\Projects\Sim2Real\MyCobotGym\mycobotgym\obj_localize\\vision_model\\trained_models" \
+           "\\reach_target\VGGNet_train_err.csv"
+    pth2 = "D:\Osiris\Python\Projects\Sim2Real\MyCobotGym\mycobotgym\obj_localize\\vision_model\\trained_models" \
+           "\\reach_target\VGGNet_val_err.csv"
+    plot(pth1, pth2)

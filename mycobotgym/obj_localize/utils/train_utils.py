@@ -42,6 +42,26 @@ def validation(model, loss_function, val_loader, device, epoch, epochs):
     return val_loss.item(), val_acc_loss / num_itr
 
 
+def run_test(model, loss, device, test_data):
+    model.eval()
+    total_err = 0
+    num_data = len(test_data)
+    with torch.no_grad():
+        for idx in range(num_data):
+        # for idx in range(1):
+            image, label = test_data[idx]
+            image = torch.unsqueeze(image, dim=0)
+            label = torch.from_numpy(label).to(device)
+            output = model(image.to(device))
+            output = torch.squeeze(output)
+            test_loss = loss(output, label)
+            test_loss = test_loss.cpu().numpy()
+            total_err += test_loss
+            print(f"label: {label.cpu().numpy()}; output: {output.cpu().numpy()}")
+            print(test_loss)
+    print(f"Average distance from label: {np.sqrt(total_err / num_data)}")
+
+
 def generate_datasets(num_images, file_dir, batch_size, transform):
     np.random.seed(10)
     index_list = list(range(num_images))
