@@ -10,7 +10,7 @@ MYCOBOT_PATH = "./assets/mycobot280.xml"
 ROOT_DATA_DIR = r"D:\Osiris\Python\Projects\Sim2Real\MyCobotGym\mycobotgym\obj_localize\data"
 MODEL_DIR = "trained_models"
 # BEST_MODEL_PATH = "../vision_model/trained_models/domain_rand/VGGNet_epoch19.pth"
-BEST_MODEL_PATH = "../vision_model/trained_models/reach_target/VGGNet_epoch15.pth"
+BEST_MODEL_PATH = "../vision_model/trained_models/reach_target/VGGNet_epoch49.pth"
 
 DEFAULT_CAMERA_CONFIG = {
     "distance": 2,
