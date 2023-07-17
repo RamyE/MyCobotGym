@@ -1,0 +1,55 @@
+MyCobotFetchReach-Sparse-IK-vision-v0:
+  n_envs: 128
+  n_timesteps: !!float 1e6
+  policy: 'MultiInputPolicy'
+  buffer_size: 20000
+  ent_coef: 'auto'
+  batch_size: 1024
+  gamma: 0.95
+  learning_rate: 0.001
+  learning_starts: 10000
+  normalize: True
+  policy_kwargs: "dict(net_arch=[256, 128, 64], n_critics=1)"
+MyCobotFetchReach-Dense-IK-vision-v0:
+  n_envs: 128
+  n_timesteps: !!float 1e6
+  policy: 'MultiInputPolicy'
+  buffer_size: 20000
+  ent_coef: 'auto'
+  batch_size: 1024
+  gamma: 0.95
+  learning_rate: 0.001
+  learning_starts: 10000
+  normalize: True
+  policy_kwargs: "dict(net_arch=[256, 128, 64], n_critics=1)"
+
+MyCobotFetchReach-Sparse-IK-v0:
+  n_envs: 8
+  n_timesteps: !!float 1e6
+  policy: 'MultiInputPolicy'
+  buffer_size: 20000
+  ent_coef: 'auto'
+  batch_size: 1024
+  gamma: 0.95
+  learning_rate: 0.001
+  learning_starts: 1000
+  normalize: True
+  policy_kwargs: "dict(net_arch=[256, 128, 64], n_critics=1)"
+  callback:
+  - mycobotgym.callbacks.VideoRecorderCallback:
+      env_id: MyCobotFetchReach-Sparse-IK-v0
+      render_freq: 100
+      n_eval_episodes: 5
+
+MyCobotFetchReach-Dense-IK-v0:
+  n_envs: 128
+  n_timesteps: !!float 1e6
+  policy: 'MultiInputPolicy'
+  buffer_size: 20000
+  ent_coef: 'auto'
+  batch_size: 1024
+  gamma: 0.95
+  learning_rate: 0.001
+  learning_starts: 10000
+  normalize: True
+  policy_kwargs: "dict(net_arch=[256, 128, 64], n_critics=1)"
