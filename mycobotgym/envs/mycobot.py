@@ -208,7 +208,7 @@ class MyCobotEnv(MujocoEnv):
         truncated = self.compute_truncated(
             obs["achieved_goal"], obs["desired_goal"], info)
 
-        if self.render_mode == "human":
+        if self.render_mode == "human" or self.render_mode == "rgb_array":
             self.mujoco_renderer.viewer.add_overlay(
                 mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "is_success", str(info["is_success"]))
             if self.has_object:
