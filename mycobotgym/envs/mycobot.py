@@ -497,7 +497,8 @@ class MyCobotEnv(MujocoEnv):
             self.model, self.data, "robot0:mocap", np.array([0.0138673, -0.13135342, 1.010216]))
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip * 10)
 
-    def reset(self, * , seed: Optional[int] = None,options: Optional[dict[str, Any]] = None)-> tuple[ObsType, dict[str, Any]]:
+    def reset(self, *, seed: Optional[int] = None,
+              options: Optional[dict[str, Any]] = None) -> tuple[ObsType, dict[str, Any]]:
         if seed is not None:
             self._np_random, seed = seeding.np_random(seed)
         ob = self.reset_model()
