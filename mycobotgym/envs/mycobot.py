@@ -264,7 +264,7 @@ class MyCobotEnv(MujocoEnv):
             goal[2] += self.np_random.uniform(0, 0.2)
 
         limit_obj_loc(goal)
-
+        self._render_callback()
         return goal.copy()
 
     def _get_obs(self):
