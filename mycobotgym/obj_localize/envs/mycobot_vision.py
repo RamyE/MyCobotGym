@@ -73,14 +73,15 @@ class MyCobotVision(MyCobotEnv):
             # display_img(cam_img)
             with torch.no_grad():
                 cam_img = Image.fromarray(cam_img.copy()).resize((224, 224))
-                img_tensor = transforms.ToTensor()(cam_img)
+                # display_img(cam_img)
+                transform = transforms.Compose([transforms.ToTensor(),
+                                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+                img_tensor = transform(cam_img)
                 img_tensor = torch.unsqueeze(img_tensor, dim=0)
                 target_pos = self.vision_model(img_tensor)
                 target_pos = torch.squeeze(target_pos).cpu().numpy().astype(np.float64)
                 # scale to meters
                 target_pos = target_pos / 100
-                # print(f">>>{target_pos}")
-                # print(f">>>{self.goal}")
             obs_goal["desired_goal"] = target_pos.copy()
         return obs_goal
 

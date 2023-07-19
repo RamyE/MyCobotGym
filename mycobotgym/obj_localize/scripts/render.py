@@ -9,9 +9,7 @@ if __name__ == '__main__':
         env.model, mujoco.mjtObj.mjOBJ_SITE, "target0"
     )
     env.model.site_pos[target_id] = [
-        -0.110360515339675,
-        -0.15,
-        0.809980824
+        -0.15005322, -0.14015559,  0.80998082
     ]
     mujoco.mj_forward(env.model, env.data)
     cam_img = env.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)

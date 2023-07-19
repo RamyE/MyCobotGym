@@ -208,7 +208,8 @@ class MyCobotEnv(MujocoEnv):
         truncated = self.compute_truncated(
             obs["achieved_goal"], obs["desired_goal"], info)
 
-        if self.render_mode == "human" or self.render_mode == "rgb_array":
+        if self.render_mode == "human":
+        # if self.render_mode == "human" or self.render_mode == "rgb_array":
             self.mujoco_renderer.viewer.add_overlay(
                 mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "is_success", str(info["is_success"]))
             if self.has_object:
@@ -250,7 +251,7 @@ class MyCobotEnv(MujocoEnv):
         mujoco.mj_forward(self.model, self.data)
 
         self.goal = self._sample_goal().copy()
-
+        self._render_callback()
         obs = self._get_obs()
         return obs
 
@@ -264,7 +265,6 @@ class MyCobotEnv(MujocoEnv):
             goal[2] += self.np_random.uniform(0, 0.2)
 
         limit_obj_loc(goal)
-        self._render_callback()
         return goal.copy()
 
     def _get_obs(self):

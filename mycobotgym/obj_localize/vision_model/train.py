@@ -94,12 +94,7 @@ def test():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    weights_path = "{}/VGG16_weights.pth".format(MODEL_DIR)
-    # vgg16_weights = load_weights(weights_path)
-    # model = ObjectLocalization(vgg16_weights, freeze=True).to(device)
-
     model = ObjectLocalization().to(device)
-    loss = nn.MSELoss(reduction='sum')
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     # data_dir = os.path.join(ROOT_DATA_DIR, "test_object")
@@ -110,17 +105,10 @@ def test():
     weights_path = 'trained_models/reach_target/VGGNet_epoch49.pth'
     model.load_state_dict(torch.load(weights_path, map_location=device))
 
-    run_test(model, loss, device, test_data)
+    run_test(model, device, test_data, 50)
 
 
 if __name__ == '__main__':
-    # train_pth, val_pth = main(50, "reach_target", use_wandb=True)
-    # plot(train_pth, val_pth)
-    # loss = nn.MSELoss(reduction='sum')
-    # array1 = np.array([[0, 0, 0], [0, 0, 0]])
-    # array2 = np.array([[1, 1, 1], [1, 1, 1]])
-    # a = torch.from_numpy(array1)
-    # b = torch.from_numpy(array2)
-    # print(loss(a.float(), b.float()))
+    # train_pth, val_pth = main(50, "reach_target_xy", use_wandb=True)
     test()
 

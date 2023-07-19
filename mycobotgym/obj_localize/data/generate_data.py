@@ -18,9 +18,6 @@ def _initialize(path):
 
 def generate_data(file_name, num_img):
     env = MyCobotVision()
-    # data_dir = convert_path(os.path.join(ROOT_DATA_DIR, file_name))
-    # print(data_dir)
-    # check_exists(data_dir)
     check_exists(file_name)
     img_dir = convert_path(os.path.join(file_name, "data"))
     check_exists(img_dir)
@@ -48,4 +45,4 @@ def write_data(pos, img, img_dir, pos_path, image_name):
 
 
 if __name__ == '__main__':
-    generate_data("test_target", 400)
+    generate_data("test_target_xy", 400)
