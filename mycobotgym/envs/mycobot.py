@@ -1,7 +1,9 @@
-from typing import Any, Literal
 import mujoco
-from os import path
+import os
+import datetime
 import numpy as np
+from typing import Any, Literal
+from PIL import Image
 from mycobotgym.utils import *
 from gymnasium import spaces
 from gymnasium.envs.mujoco.mujoco_env import MujocoEnv
@@ -50,8 +52,8 @@ class MyCobotEnv(MujocoEnv):
         self.obj_range = obj_range
         self.goal = np.zeros(3)
 
-        xml_file_path = path.join(
-            path.dirname(path.realpath(__file__)),
+        xml_file_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
             model_path,
         )
 
@@ -201,15 +203,28 @@ class MyCobotEnv(MujocoEnv):
         obs = self._get_obs()
 
         info = {
-            "is_success": self._is_success(obs["achieved_goal"], self.goal)}
+            "is_success": self._is_success(obs["achieved_goal"], self.goal),
+            "goal": self.goal
+        }
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
         terminated = self.compute_terminated(
             obs["achieved_goal"], obs["desired_goal"], info)
         truncated = self.compute_truncated(
             obs["achieved_goal"], obs["desired_goal"], info)
 
-        if self.render_mode == "human":
-        # if self.render_mode == "human" or self.render_mode == "rgb_array":
+        # evaluation only
+        if not info.get('is_success'):
+            birdview_img = self.mujoco_renderer.render("rgb_array", camera_name="birdview")
+            sideview_img = self.mujoco_renderer.render("rgb_array", camera_name="frontview")
+            birdview_img = Image.fromarray(birdview_img)
+            sideview_img = Image.fromarray(sideview_img)
+            img_dir = './images/temp'
+            os.makedirs(img_dir, exist_ok=True)
+            birdview_img.save(f"{img_dir}/birdview_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg")
+            sideview_img.save(f"{img_dir}/sideview_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg")
+
+        if self.render_mode == "human" or self.render_mode == "rgb_array":
+            self.mujoco_renderer.viewer._overlays.clear()
             self.mujoco_renderer.viewer.add_overlay(
                 mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "is_success", str(info["is_success"]))
             if self.has_object:
@@ -218,8 +233,11 @@ class MyCobotEnv(MujocoEnv):
                 self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_object", "%.3f" %
                                                         goal_distance(obs["achieved_goal"], obs["observation"][:3]))
             else:
-                self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_target", "%.3f" %
-                                                        goal_distance(obs["achieved_goal"], self.goal))
+                # self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "Goal", self.goal)
+                # self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "Estimate goal", obs["desired_goal"])
+                # self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "Achieved goal", obs["achieved_goal"])
+                self.mujoco_renderer.viewer.add_overlay(mujoco.mjtGridPos.mjGRID_BOTTOMRIGHT, "distance_gripper_target",
+                                                        "%.3f" % goal_distance(obs["achieved_goal"], self.goal))
             self.render()
         return obs, reward, terminated, truncated, info
 

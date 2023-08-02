@@ -10,7 +10,7 @@ def sample_xyz(range):
     return (x, y, z)
 
 
-def sample_quat(range):
+def sample_euler(range):
     yaw = np.random.uniform(range[0][0], range[0][1]) * np.pi / 180
     pitch = np.random.uniform(range[1][0], range[1][1]) * np.pi / 180
     roll = np.random.uniform(range[2][0], range[2][1]) * np.pi / 180
