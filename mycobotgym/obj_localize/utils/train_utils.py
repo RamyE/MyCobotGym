@@ -51,7 +51,7 @@ def validation(model, loss_function, val_loader, device, epoch, epochs, cat_mode
     return val_loss.item(), val_acc_loss / num_itr
 
 
-def run_test(model, device, test_data, num_itr=None, log_dir=None):
+def run_test(model, device, test_data, num_itr=None, log_dir=None, cat_model=False):
     model.eval()
     success = 0
     total_x_err = total_y_err = total_z_err = 0
@@ -68,9 +68,15 @@ def run_test(model, device, test_data, num_itr=None, log_dir=None):
         iterations = tqdm(range(num_itr))
     with torch.no_grad():
         for idx in iterations:
-            image, label = test_data[idx]
-            image = torch.unsqueeze(image, dim=0)
-            output = model(image.to(device))
+            if cat_model:
+                image1, image2, label = test_data[idx]
+                image1 = torch.unsqueeze(image1, dim=0)
+                image2 = torch.unsqueeze(image2, dim=0)
+                output = model(image1.to(device), image2.to(device))
+            else:
+                image, label = test_data[idx]
+                image = torch.unsqueeze(image, dim=0)
+                output = model(image.to(device))
             output = torch.squeeze(output).cpu().numpy()
             test_err = np.linalg.norm(output-label, axis=-1)
             x_err = np.linalg.norm(output[0] - label[0])

@@ -11,6 +11,7 @@ LOG_DIR = "../logs"
 MODEL_DIR = "trained_models"
 # BEST_MODEL_PATH = "../vision_model/trained_models/domain_rand/VGGNet_epoch19.pth"
 # BEST_MODEL_PATH = "../vision_model/trained_models/reach_target/VGGNet_epoch49.pth"
+BEST_MODEL_PATH = "../vision_model/trained_models/bird_front/VGGNet_epoch9.pth"
 BEST_MODEL_PATH_XY = "../vision_model/trained_models/bird_view/VGGNet_epoch38.pth"
 BEST_MODEL_PATH_Z = "../vision_model/trained_models/front_view/VGGNet_epoch39.pth"
 

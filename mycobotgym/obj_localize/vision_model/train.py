@@ -100,11 +100,14 @@ def main(epochs, file_name, pre_train=0, use_wandb=False, cat_model=False):
     return train_err_path, val_err_path
 
 
-def test(filename, model_num):
+def test(filename, model_num, cat_model=False):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    model = ObjectLocalization().to(device)
+    if cat_model:
+        model = ObjectLocalizationCat().to(device)
+    else:
+        model = ObjectLocalization().to(device)
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
@@ -119,10 +122,10 @@ def test(filename, model_num):
     model.load_state_dict(torch.load(weights_path, map_location=device))
 
     log_dir = f"{LOG_DIR}/{test_file}.txt"
-    run_test(model, device, test_data, log_dir=log_dir)
+    run_test(model, device, test_data, log_dir=log_dir, cat_model=cat_model)
 
 
 if __name__ == '__main__':
-    train_pth, val_pth = main(40, "bird_front", use_wandb=True, cat_model=True)
-    # test('test_side_view')
+    # train_pth, val_pth = main(10, "bird_front", use_wandb=True, cat_model=True)
+    test('bird_front', 9, cat_model=True)
 

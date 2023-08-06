@@ -12,6 +12,7 @@ from gymnasium_robotics.utils.rotations import quat2euler, euler2quat
 from gymnasium_robotics.utils import mujoco_utils
 from mycobotgym.envs.mycobot import MyCobotEnv
 from mycobotgym.obj_localize.vision_model.model import ObjectLocalization
+from mycobotgym.obj_localize.vision_model.model_cat import ObjectLocalizationCat
 from mycobotgym.obj_localize.constants import *
 from mycobotgym.obj_localize.utils.data_utils import *
 
@@ -33,6 +34,13 @@ class MyCobotVision(MyCobotEnv):
         self.mode = mode
         if "eval" == self.mode:
             print("Use vision model for object localization.")
+            self.vision_model = ObjectLocalizationCat()
+            vision_model_pth = path.join(
+                path.dirname(path.realpath(__file__)),
+                BEST_MODEL_PATH
+            )
+            self.vision_model.load_state_dict(torch.load(vision_model_pth))
+            '''
             self.vision_model_xy = ObjectLocalization()
             self.vision_model_z = ObjectLocalization()
             vision_model_pth_xy = path.join(
@@ -45,6 +53,7 @@ class MyCobotVision(MyCobotEnv):
             )
             self.vision_model_xy.load_state_dict(torch.load(vision_model_pth_xy))
             self.vision_model_z.load_state_dict(torch.load(vision_model_pth_z))
+            '''
 
         super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps, controller_type, obj_range,
                                             target_range, target_offset, target_in_the_air, distance_threshold, initial_qpos,
@@ -88,22 +97,25 @@ class MyCobotVision(MyCobotEnv):
             if self.mujoco_renderer.viewer is not None:
                 self.mujoco_renderer.viewer._overlays.clear()
             birdview_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
-            sideview_img = self.mujoco_renderer.render("rgb_array", camera_name=FRONT_VIEW)
+            frontview_img = self.mujoco_renderer.render("rgb_array", camera_name=FRONT_VIEW)
             # display_img(cam_img)
             with torch.no_grad():
                 birdview_img = Image.fromarray(birdview_img.copy()).resize((224, 224))
-                sideview_img = Image.fromarray(sideview_img.copy()).resize((224, 224))
+                frontview_img = Image.fromarray(frontview_img.copy()).resize((224, 224))
                 transform = transforms.Compose([transforms.ToTensor(),
                                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
                 birdview_tensor = transform(birdview_img)
-                sideview_tensor = transform(sideview_img)
+                frontview_tensor = transform(frontview_img)
                 birdview_tensor = torch.unsqueeze(birdview_tensor, dim=0)
-                sideview_tensor = torch.unsqueeze(sideview_tensor, dim=0)
-                target_pos = np.empty(3)
-                birdview_est = self.vision_model_xy(birdview_tensor)
-                sideview_est = self.vision_model_z(sideview_tensor)
-                target_pos[:2] = torch.squeeze(birdview_est).cpu().numpy().astype(np.float64)[:2]
-                target_pos[-1] = torch.squeeze(sideview_est).cpu().numpy().astype(np.float64)[-1]
+                frontview_tensor = torch.unsqueeze(frontview_tensor, dim=0)
+                target_pos = self.vision_model(birdview_tensor, frontview_tensor)
+                target_pos = torch.squeeze(target_pos).cpu().numpy().astype(np.float64)
+                # target_pos = np.empty(3)
+                # birdview_est = self.vision_model_xy(birdview_tensor)
+                # frontview_est = self.vision_model_z(frontview_tensor)
+                # target_pos[:2] = torch.squeeze(birdview_est).cpu().numpy().astype(np.float64)[:2]
+                # target_pos[-1] = torch.squeeze(frontview_est).cpu().numpy().astype(np.float64)[-1]
+
                 # scale to meters
                 target_pos = target_pos / 100
             obs_goal["desired_goal"] = target_pos.copy()

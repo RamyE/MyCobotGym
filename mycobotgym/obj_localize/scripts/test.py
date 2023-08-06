@@ -37,7 +37,7 @@ def test_model():
     sideview_tensor = torch.unsqueeze(sideview_tensor, dim=0)
 
     outpout1 = model1(birdview_tensor, sideview_tensor)
-    outpuot2 = model2(birdview_tensor)
+    # outpuot2 = model2(birdview_tensor)
 
 
 def temp():
