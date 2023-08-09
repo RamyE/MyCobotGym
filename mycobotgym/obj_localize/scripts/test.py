@@ -2,6 +2,7 @@ import os
 import torch
 import mujoco
 import numpy as np
+import torchvision.models as models
 from torchvision import transforms
 from PIL import Image
 from tqdm import tqdm
@@ -38,6 +39,11 @@ def test_model():
 
     outpout1 = model1(birdview_tensor, sideview_tensor)
     # outpuot2 = model2(birdview_tensor)
+
+
+def test_resnet():
+    env = MyCobotVision(mode='train')
+    env.test()
 
 
 def temp():
@@ -86,7 +92,5 @@ def main():
 if __name__ == '__main__':
     # main()
     # temp()
-    test_model()
-    # pos1 = np.array([0.02745002, -0.11349673,  0.80998082])
-    # pos2 = np.array([ 0.02142225, -0.11864639,  0.7976401 ])
-    # print(np.linalg.norm(pos1 - pos2, axis=-1))
+    # test_model()
+    test_resnet()

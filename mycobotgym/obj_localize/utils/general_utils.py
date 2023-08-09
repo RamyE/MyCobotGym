@@ -3,8 +3,10 @@ import torch
 import os
 import wandb
 import matplotlib.pyplot as plt
+import torchvision.transforms as transforms
 
 from torchvision.models import vgg16
+from PIL import Image
 
 
 def convert_path(path):
@@ -58,6 +60,15 @@ def plot(pth1, pth2):
     plt.ylabel("Loss")
     plt.legend(loc='best')
     plt.show()
+
+
+def image_to_tensor(image):
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    image = Image.fromarray(image.copy()).resize((224, 224))
+    tensor = transform(image)
+    tensor = torch.unsqueeze(tensor, dim=0)
+    return tensor
 
 
 if __name__ == '__main__':

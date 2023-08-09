@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import mujoco
 import torchvision.transforms as transforms
-
+import torchvision.models as models
 from typing import Literal
 from os import path
 from PIL import Image
@@ -15,6 +15,7 @@ from mycobotgym.obj_localize.vision_model.model import ObjectLocalization
 from mycobotgym.obj_localize.vision_model.model_cat import ObjectLocalizationCat
 from mycobotgym.obj_localize.constants import *
 from mycobotgym.obj_localize.utils.data_utils import *
+from mycobotgym.obj_localize.utils.general_utils import *
 
 
 MAX_ROTATION_DISPLACEMENT = 0.5
@@ -30,95 +31,67 @@ class MyCobotVision(MyCobotEnv):
                  controller_type: Literal['mocap', 'IK', 'joint', 'delta_joint'] = 'IK', obj_range: float = 0.1,
                  target_range: float = 0.1, target_offset: float = 0.0, target_in_the_air=True, distance_threshold=0.05,
                  initial_qpos: dict = {}, fetch_env: bool = True, reward_type="sparse", frame_skip: int = 20,
-                 default_camera_config: dict = DEFAULT_CAMERA_CONFIG, mode: str = "train", **kwargs) -> None:
-        self.mode = mode
-        if "eval" == self.mode:
-            print("Use vision model for object localization.")
-            self.vision_model = ObjectLocalizationCat()
-            vision_model_pth = path.join(
-                path.dirname(path.realpath(__file__)),
-                BEST_MODEL_PATH
-            )
-            self.vision_model.load_state_dict(torch.load(vision_model_pth))
-            '''
-            self.vision_model_xy = ObjectLocalization()
-            self.vision_model_z = ObjectLocalization()
-            vision_model_pth_xy = path.join(
-                path.dirname(path.realpath(__file__)),
-                BEST_MODEL_PATH_XY
-            )
-            vision_model_pth_z = path.join(
-                path.dirname(path.realpath(__file__)),
-                BEST_MODEL_PATH_Z
-            )
-            self.vision_model_xy.load_state_dict(torch.load(vision_model_pth_xy))
-            self.vision_model_z.load_state_dict(torch.load(vision_model_pth_z))
-            '''
+                 default_camera_config: dict = DEFAULT_CAMERA_CONFIG, mode: str = None, **kwargs) -> None:
+        if mode is not None:
+            self.mode = mode
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            if "eval" == self.mode:
+                print("Use vision model for object localization.")
+                self.vision_model = ObjectLocalizationCat()
+                vision_model_pth = path.join(
+                    path.dirname(path.realpath(__file__)),
+                    BEST_MODEL_PATH
+                )
+                self.vision_model.load_state_dict(torch.load(vision_model_pth))
+            elif "train" == self.mode:
+                print("Load feature extraction model.")
+                vgg16_model = models.vgg16()
+                vgg16_model_pth = path.join(
+                    path.dirname(path.realpath(__file__)),
+                    VGG16_MODEL_PATH
+                )
+                vgg16_model.load_state_dict(torch.load(vgg16_model_pth, map_location=device))
+                self.feature_extractor = vgg16_model.features
 
         super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps, controller_type, obj_range,
                                             target_range, target_offset, target_in_the_air, distance_threshold, initial_qpos,
                                             fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
 
-    def generate_mujoco_observations(self):
-        (
-            grip_pos,
-            object_pos,
-            object_rel_pos,
-            gripper_state,
-            object_rot,
-            object_velp,
-            object_velr,
-            grip_velp,
-            gripper_vel,
-        ) = super(MyCobotVision, self).generate_mujoco_observations()
-        if self.has_object and "eval" == self.mode:
-            # position from vision model
-            print(">>>Render.")
-            cam_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
-            cam_img = torch.unsqueeze(cam_img, dim=0)
-            object_pos = self.vision_model(cam_img)
-            object_pos = torch.squeeze(object_pos).numpy()
-
-        return (
-            grip_pos,
-            object_pos,
-            object_rel_pos,
-            gripper_state,
-            object_rot,
-            object_velp,
-            object_velr,
-            grip_velp,
-            gripper_vel,
-        )
-
     def _get_obs(self):
         obs_goal = super(MyCobotVision, self)._get_obs()
-        if "eval" == self.mode:
-            if self.mujoco_renderer.viewer is not None:
-                self.mujoco_renderer.viewer._overlays.clear()
+
+        if self.model is not None:
             birdview_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
             frontview_img = self.mujoco_renderer.render("rgb_array", camera_name=FRONT_VIEW)
+            sideview_img = self.mujoco_renderer.render("rgb_array", camera_name=SIDE_VIEW)
             # display_img(cam_img)
-            with torch.no_grad():
-                birdview_img = Image.fromarray(birdview_img.copy()).resize((224, 224))
-                frontview_img = Image.fromarray(frontview_img.copy()).resize((224, 224))
-                transform = transforms.Compose([transforms.ToTensor(),
-                                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-                birdview_tensor = transform(birdview_img)
-                frontview_tensor = transform(frontview_img)
-                birdview_tensor = torch.unsqueeze(birdview_tensor, dim=0)
-                frontview_tensor = torch.unsqueeze(frontview_tensor, dim=0)
-                target_pos = self.vision_model(birdview_tensor, frontview_tensor)
-                target_pos = torch.squeeze(target_pos).cpu().numpy().astype(np.float64)
-                # target_pos = np.empty(3)
-                # birdview_est = self.vision_model_xy(birdview_tensor)
-                # frontview_est = self.vision_model_z(frontview_tensor)
-                # target_pos[:2] = torch.squeeze(birdview_est).cpu().numpy().astype(np.float64)[:2]
-                # target_pos[-1] = torch.squeeze(frontview_est).cpu().numpy().astype(np.float64)[-1]
+            if "eval" == self.mode:
+                if self.mujoco_renderer.viewer is not None:
+                    self.mujoco_renderer.viewer._overlays.clear()
+                with torch.no_grad():
+                    birdview_tensor = image_to_tensor(birdview_img)
+                    frontview_tensor = image_to_tensor(frontview_img)
+                    target_pos = self.vision_model(birdview_tensor, frontview_tensor)
+                    target_pos = torch.squeeze(target_pos).cpu().numpy().astype(np.float64)
+                    # target_pos = np.empty(3)
+                    # birdview_est = self.vision_model_xy(birdview_tensor)
+                    # frontview_est = self.vision_model_z(frontview_tensor)
+                    # target_pos[:2] = torch.squeeze(birdview_est).cpu().numpy().astype(np.float64)[:2]
+                    # target_pos[-1] = torch.squeeze(frontview_est).cpu().numpy().astype(np.float64)[-1]
 
-                # scale to meters
-                target_pos = target_pos / 100
-            obs_goal["desired_goal"] = target_pos.copy()
+                    # scale to meters
+                    target_pos = target_pos / 100
+                obs_goal["desired_goal"] = target_pos.copy()
+            elif "train" == self.mode:
+                print()
+                birdview_tensor = image_to_tensor(birdview_img)
+                frontview_tensor = image_to_tensor(frontview_img)
+                sideview_tensor = image_to_tensor(sideview_img)
+                # add image freatures
+                # obs_goal["image_features"] = np.stack(birdview_img, frontview_img, sideview_img)
+                # remove desired_goal
+                # obs_goal = obs_goal.pop("desired_goal")
+
         return obs_goal
 
     def _rand_position(self):
@@ -189,6 +162,16 @@ class MyCobotVision(MyCobotEnv):
         # cam_img = self.mujoco_renderer.render("rgb_array", camera_name=SIDE_VIEW)
         # display_img(cam_img)
         return target_pos, cam_img
+
+    def test(self):
+        image = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
+        tensor = image_to_tensor(image)
+        print(tensor.size())
+        with torch.no_grad():
+            output = self.feature_extractor(tensor)
+            output = torch.squeeze(output)
+        print(type(output))
+        print(output.size())
 
 
 if __name__ == '__main__':

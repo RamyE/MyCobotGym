@@ -50,7 +50,7 @@ if __name__ == '__main__':
     left_features = backbone(left_image)
     right_features = backbone(right_image)
 
-    # print(left_features.size())
+    print(left_features.size())
 
     # Perform feature fusion (e.g., concatenation)
     combined_features = torch.cat((left_features, right_features), dim=1)
