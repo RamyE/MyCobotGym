@@ -8,6 +8,7 @@ from typing import Literal
 from os import path
 from PIL import Image
 from mycobotgym.utils import *
+from gymnasium import spaces
 from gymnasium_robotics.utils.rotations import quat2euler, euler2quat
 from gymnasium_robotics.utils import mujoco_utils
 from mycobotgym.envs.mycobot import MyCobotEnv
@@ -32,6 +33,7 @@ class MyCobotVision(MyCobotEnv):
                  target_range: float = 0.1, target_offset: float = 0.0, target_in_the_air=True, distance_threshold=0.05,
                  initial_qpos: dict = {}, fetch_env: bool = True, reward_type="sparse", frame_skip: int = 20,
                  default_camera_config: dict = DEFAULT_CAMERA_CONFIG, mode: str = None, **kwargs) -> None:
+
         if mode is not None:
             self.mode = mode
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -53,9 +55,26 @@ class MyCobotVision(MyCobotEnv):
                 vgg16_model.load_state_dict(torch.load(vgg16_model_pth, map_location=device))
                 self.feature_extractor = vgg16_model.features
 
-        super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps, controller_type, obj_range,
-                                            target_range, target_offset, target_in_the_air, distance_threshold, initial_qpos,
-                                            fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
+                # modify observation space
+                obs = self._get_obs()
+                self.observation_space = spaces.Dict(
+                    dict(
+                        image_features=spaces.Box(
+                            -np.inf, np.inf, shape=obs["image_features"].shape, dtype="float64"
+                        ),
+                        achieved_goal=spaces.Box(
+                            -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
+                        ),
+                        observation=spaces.Box(
+                            -np.inf, np.inf, shape=obs["observation"].shape, dtype="float64"
+                        ),
+                    )
+                )
+                super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps,
+                                                    controller_type, obj_range,
+                                                    target_range, target_offset, target_in_the_air, distance_threshold,
+                                                    initial_qpos,
+                                                    fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
 
     def _get_obs(self):
         obs_goal = super(MyCobotVision, self)._get_obs()
@@ -83,14 +102,23 @@ class MyCobotVision(MyCobotEnv):
                     target_pos = target_pos / 100
                 obs_goal["desired_goal"] = target_pos.copy()
             elif "train" == self.mode:
-                print()
+                print("Prepare image features.")
                 birdview_tensor = image_to_tensor(birdview_img)
                 frontview_tensor = image_to_tensor(frontview_img)
                 sideview_tensor = image_to_tensor(sideview_img)
                 # add image freatures
-                # obs_goal["image_features"] = np.stack(birdview_img, frontview_img, sideview_img)
+                with torch.no_grad():
+                    birdview_feature = self.feature_extractor(birdview_tensor)
+                    frontview_feature = self.feature_extractor(frontview_tensor)
+                    sideview_feature = self.feature_extractor(sideview_tensor)
+
+                birdview_feature = torch.squeeze(birdview_feature).numpy()
+                frontview_feature = torch.squeeze(frontview_feature).numpy()
+                sideview_feature = torch.squeeze(sideview_feature).numpy()
+                obs_goal["image_features"] = np.stack((birdview_feature, frontview_feature, sideview_feature))
+
                 # remove desired_goal
-                # obs_goal = obs_goal.pop("desired_goal")
+                obs_goal.pop("desired_goal")
 
         return obs_goal
 
@@ -166,12 +194,12 @@ class MyCobotVision(MyCobotEnv):
     def test(self):
         image = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
         tensor = image_to_tensor(image)
-        print(tensor.size())
+        # print(tensor.size())
         with torch.no_grad():
             output = self.feature_extractor(tensor)
             output = torch.squeeze(output)
-        print(type(output))
-        print(output.size())
+        # print(type(output))
+        # print(output.size())
 
 
 if __name__ == '__main__':
