@@ -93,4 +93,14 @@ if __name__ == '__main__':
     # main()
     # temp()
     # test_model()
-    test_resnet()
+    # test_resnet()
+    import numpy as np
+
+    # Create a 4D array (example)
+    original_array = np.random.random((2, 3, 4, 5))
+
+    # Flatten the 4D array to a 1D array
+    flattened_array = original_array.flatten()
+
+    print("Original Shape:", original_array.shape)
+    print("Flattened Shape:", flattened_array.shape)

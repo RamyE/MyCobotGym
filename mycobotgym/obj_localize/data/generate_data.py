@@ -70,4 +70,4 @@ def write_data(pos, img1, img_dir, pos_path, idx, img2=None):
 
 
 if __name__ == '__main__':
-    generate_data("test_bird_front", 500, BIRD_VIEW, FRONT_VIEW)
+    generate_data("test_front_side", 500, FRONT_VIEW, SIDE_VIEW)

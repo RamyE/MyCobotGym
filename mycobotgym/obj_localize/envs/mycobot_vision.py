@@ -34,14 +34,8 @@ class MyCobotVision(MyCobotEnv):
                  initial_qpos: dict = {}, fetch_env: bool = True, reward_type="sparse", frame_skip: int = 20,
                  default_camera_config: dict = DEFAULT_CAMERA_CONFIG, mode: str = None, **kwargs) -> None:
 
-        super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps,
-                                            controller_type, obj_range,
-                                            target_range, target_offset, target_in_the_air, distance_threshold,
-                                            initial_qpos,
-                                            fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
-
-        if mode is not None:
-            self.mode = mode
+        self.mode = mode
+        if self.mode is not None:
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             if "eval" == self.mode:
                 print("Use vision model for object localization.")
@@ -51,6 +45,11 @@ class MyCobotVision(MyCobotEnv):
                     BEST_MODEL_PATH
                 )
                 self.vision_model.load_state_dict(torch.load(vision_model_pth))
+                super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps,
+                                                    controller_type, obj_range,
+                                                    target_range, target_offset, target_in_the_air, distance_threshold,
+                                                    initial_qpos,
+                                                    fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
             elif "train" == self.mode:
                 print("Load feature extraction model.")
                 vgg16_model = models.vgg16()
@@ -61,26 +60,38 @@ class MyCobotVision(MyCobotEnv):
                 vgg16_model.load_state_dict(torch.load(vgg16_model_pth, map_location=device))
                 self.feature_extractor = vgg16_model.features
 
+                super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps,
+                                                    controller_type, obj_range,
+                                                    target_range, target_offset, target_in_the_air, distance_threshold,
+                                                    initial_qpos,
+                                                    fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
+
                 # modify observation space
-                # obs = self._get_obs()
-                # self.observation_space = spaces.Dict(
-                #     dict(
-                #         image_features=spaces.Box(
-                #             -np.inf, np.inf, shape=obs["image_features"].shape, dtype="float64"
-                #         ),
-                #         achieved_goal=spaces.Box(
-                #             -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
-                #         ),
-                #         observation=spaces.Box(
-                #             -np.inf, np.inf, shape=obs["observation"].shape, dtype="float64"
-                #         ),
-                #     )
-                # )
+                obs = self._get_obs()
+                self.observation_space = spaces.Dict(
+                    dict(
+                        image_features=spaces.Box(
+                            -np.inf, np.inf, shape=obs["image_features"].shape, dtype="float64"
+                        ),
+                        achieved_goal=spaces.Box(
+                            -np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float64"
+                        ),
+                        observation=spaces.Box(
+                            -np.inf, np.inf, shape=obs["observation"].shape, dtype="float64"
+                        ),
+                    )
+                )
+        else:
+            super(MyCobotVision, self).__init__(model_path, has_object, block_gripper, control_steps,
+                                                controller_type, obj_range,
+                                                target_range, target_offset, target_in_the_air, distance_threshold,
+                                                initial_qpos,
+                                                fetch_env, reward_type, frame_skip, default_camera_config, **kwargs)
 
     def _get_obs(self):
         obs_goal = super(MyCobotVision, self)._get_obs()
 
-        if self.model is not None:
+        if self.mode is not None:
             birdview_img = self.mujoco_renderer.render("rgb_array", camera_name=BIRD_VIEW)
             frontview_img = self.mujoco_renderer.render("rgb_array", camera_name=FRONT_VIEW)
             sideview_img = self.mujoco_renderer.render("rgb_array", camera_name=SIDE_VIEW)
@@ -93,11 +104,6 @@ class MyCobotVision(MyCobotEnv):
                     frontview_tensor = image_to_tensor(frontview_img)
                     target_pos = self.vision_model(birdview_tensor, frontview_tensor)
                     target_pos = torch.squeeze(target_pos).cpu().numpy().astype(np.float64)
-                    # target_pos = np.empty(3)
-                    # birdview_est = self.vision_model_xy(birdview_tensor)
-                    # frontview_est = self.vision_model_z(frontview_tensor)
-                    # target_pos[:2] = torch.squeeze(birdview_est).cpu().numpy().astype(np.float64)[:2]
-                    # target_pos[-1] = torch.squeeze(frontview_est).cpu().numpy().astype(np.float64)[-1]
 
                     # scale to meters
                     target_pos = target_pos / 100
@@ -113,13 +119,12 @@ class MyCobotVision(MyCobotEnv):
                     frontview_feature = self.feature_extractor(frontview_tensor)
                     sideview_feature = self.feature_extractor(sideview_tensor)
 
-                birdview_feature = torch.squeeze(birdview_feature).numpy()
-                frontview_feature = torch.squeeze(frontview_feature).numpy()
-                sideview_feature = torch.squeeze(sideview_feature).numpy()
-                obs_goal["image_features"] = np.stack((birdview_feature, frontview_feature, sideview_feature))
+                # obs_goal["image_features"] = np.stack((birdview_feature, frontview_feature, sideview_feature))
+                # flatten the features
+                obs_goal["image_features"] = np.stack((birdview_feature, frontview_feature, sideview_feature)).flatten()
 
                 # remove desired_goal
-                # obs_goal.pop("desired_goal")
+                obs_goal.pop("desired_goal")
 
         return obs_goal
 
